@@ -2,9 +2,10 @@
   "name": "dynamodb-table-util",
   "version": "1.0.5",
   "description": "A simple @aws-sdk/client-dynamodb wrapper",
-  "main": "build/src/index.js",
+  "main": "./build/src/index.js",
+  "types": "./build/src/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --declaration",
     "lint": "eslint ./src",
     "test": "jest"
   },
@@ -46,7 +47,6 @@
   },
   "files": [
     "./build/src/index.js",
-    "LICENSE",
-    "package*.json"
+    "./build/src/index.d.ts"
   ]
 }
