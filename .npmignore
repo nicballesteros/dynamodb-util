@@ -1,0 +1,8 @@
+/.github/
+/.git/
+./.gitignore
+/test/
+/coverage/
+./.eslintrc.json
+./.eslintignore
+/docker/

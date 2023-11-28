@@ -1,8 +1,8 @@
 {
-  "name": "dynamodb-util",
+  "name": "@nicballesteros/dynamodb-util",
   "version": "1.0.0",
   "description": "A simple @aws-sdk/client-dynamodb wrapper",
-  "main": "src/index.js",
+  "main": "build/index.js",
   "scripts": {
     "build": "tsc",
     "lint": "eslint ./src",
