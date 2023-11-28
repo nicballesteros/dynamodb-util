@@ -1,7 +1,7 @@
 import { DynamoDBClient, DynamoDBClientConfig, QueryCommand, QueryCommandInput } from '@aws-sdk/client-dynamodb';
 import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { NativeAttributeValue } from '@aws-sdk/util-dynamodb';
-import GetItemCommandError from './src/errors/GetItemCommandError';
+import GetItemCommandError from './errors/GetItemCommandError';
 
 export interface DynamoDBConfig extends DynamoDBClientConfig {
   table: string,
@@ -76,7 +76,7 @@ export default class DynamoDB extends DynamoDBClient {
     const { Item: item } = await this.documentClient.send(command);
 
     if (item === undefined) {
-      throw new GetItemCommandError('Item not found');
+      return undefined;
     }
 
     return this.filterDeletedItems(item as RecordItem) as RecordItem | undefined;
