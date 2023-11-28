@@ -40,7 +40,6 @@ export default class DynamoDB extends DynamoDBClient {
     });
   }
 
-
   private filterDeletedItems(items: RecordItem | RecordItem[] ): RecordItem | RecordItem[] | undefined {
     if (!Array.isArray(items)) {
       if (items?.isDeleted === true) {
@@ -96,7 +95,7 @@ export default class DynamoDB extends DynamoDBClient {
 
   public async queryPrimaryIndex(primaryKey: string, sortKeyBeginsWith?: string, options?: QueryOptions) {
     let KeyConditionExpression = 'ppk = :ppk';
-    let ExpressionAttributeValues: Record<string, NativeAttributeValue> = {
+    const ExpressionAttributeValues: Record<string, NativeAttributeValue> = {
       ':ppk': primaryKey,
     };
 
@@ -130,7 +129,7 @@ export default class DynamoDB extends DynamoDBClient {
 
   public async querySecondaryIndex(secondaryKey: string, sortKeyBeginsWith?: string, options?: QueryOptions) {
     let KeyConditionExpression = 'spk = :spk';
-    let ExpressionAttributeValues: Record<string, NativeAttributeValue> = {
+    const ExpressionAttributeValues: Record<string, NativeAttributeValue> = {
       ':spk': secondaryKey,
     };
 
