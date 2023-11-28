@@ -2,7 +2,7 @@
   "name": "dynamodb-table-util",
   "version": "1.0.4",
   "description": "A simple @aws-sdk/client-dynamodb wrapper",
-  "main": "build/index.js",
+  "main": "build/src/index.js",
   "scripts": {
     "build": "tsc",
     "lint": "eslint ./src",
@@ -45,7 +45,7 @@
     "@aws-sdk/lib-dynamodb": "3.460.0"
   },
   "files": [
-    "build/index.js",
+    "./build/src/index.js",
     "LICENSE",
     "package*.json"
   ]
