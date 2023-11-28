@@ -1,6 +1,6 @@
 {
   "name": "dynamodb-table-util",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A simple @aws-sdk/client-dynamodb wrapper",
   "main": "build/src/index.js",
   "scripts": {
