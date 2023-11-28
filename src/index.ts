@@ -17,8 +17,8 @@ export interface RecordItem extends Record<string, NativeAttributeValue> {
 }
 
 export interface QueryOptions {
-  limit: number | undefined,
-  pkOnly: boolean | undefined,
+  limit?: number,
+  pkOnly?: boolean,
 }
 
 export default class DynamoDB extends DynamoDBClient {

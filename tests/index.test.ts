@@ -1,10 +1,26 @@
 import Chance from 'chance';
 import DynamoDB, { RecordItem } from '../src';
-import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import 'aws-sdk-client-mock-jest';
+import {NativeAttributeValue} from '@aws-sdk/util-dynamodb';
 
 const chance = Chance();
+
+const createItem = () => {
+  const ppk = `resource:${chance.guid()}`;
+  const psk = `sortvalue:${chance.guid()}`;
+
+  return {
+    ppk,
+    psk,
+    data: {
+      value: chance.integer(),
+    },
+    spk: psk,
+    ssk: ppk,
+  };
+};
 
 describe('DynamoDB Wrapper Class', () => {
   const documentClientMock = mockClient(DynamoDBDocumentClient);
@@ -214,6 +230,186 @@ describe('DynamoDB Wrapper Class', () => {
           psk: item.psk,
         },
       });
+    });
+  });
+
+  describe('queryPrimaryIndex', () => {
+    it('should query the primary index', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+      };
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.queryPrimaryIndex(item.ppk);
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'ppk = :ppk',
+        ExpressionAttributeValues: {
+          ':ppk': item.ppk,
+        } as Record<string, NativeAttributeValue>,
+      });
+
+      expect(res).toEqual(items);
+    });
+
+    it('should remove deleted items', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+      };
+
+      const deletedItem: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+        isDeleted: true,
+      };
+
+      const items: Record<string, NativeAttributeValue>[] = [item, deletedItem, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.queryPrimaryIndex(item.ppk);
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'ppk = :ppk',
+        ExpressionAttributeValues: {
+          ':ppk': item.ppk,
+        } as Record<string, NativeAttributeValue>,
+      });
+
+      expect(res.length).toBe(items.length - 1);
+      expect(res).toEqual(items.filter((i) => i.isDeleted !== true));
+    });
+
+    it('should query the primary index and the sort key', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+      };
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.queryPrimaryIndex(item.ppk, item.psk);
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'ppk = :ppk and begins_with(psk, :psk)',
+        ExpressionAttributeValues: {
+          ':ppk': item.ppk,
+          ':psk': item.psk,
+        } as Record<string, NativeAttributeValue>,
+      });
+
+      expect(res).toEqual(items);
+    });
+
+    it('should only return pk', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+      };
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.queryPrimaryIndex(item.ppk, item.psk, {
+        pkOnly: true,
+      });
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'ppk = :ppk and begins_with(psk, :psk)',
+        ExpressionAttributeValues: {
+          ':ppk': item.ppk,
+          ':psk': item.psk,
+        } as Record<string, NativeAttributeValue>,
+        ProjectionExpression: 'ppk',
+      });
+
+      expect(res).toEqual(items);
+    });
+
+    it('should set a limit', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+      };
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const limit = chance.natural({ min: 5, max: 10 });
+
+      const res = await client.queryPrimaryIndex(item.ppk, item.psk, {
+        limit,
+      });
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'ppk = :ppk and begins_with(psk, :psk)',
+        ExpressionAttributeValues: {
+          ':ppk': item.ppk,
+          ':psk': item.psk,
+        } as Record<string, NativeAttributeValue>,
+        Limit: limit,
+      });
+
+      expect(res).toEqual(items);
     });
   });
 });
