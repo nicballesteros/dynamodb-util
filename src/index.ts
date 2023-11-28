@@ -11,9 +11,9 @@ export interface DynamoDBConfig extends DynamoDBClientConfig {
 export interface RecordItem extends Record<string, NativeAttributeValue> {
   ppk: string,
   psk: string,
-  spk: string | undefined,
-  ssk: string | undefined,
-  isDeleted: boolean | undefined,
+  spk?: string,
+  ssk?: string,
+  isDeleted?: boolean,
 }
 
 export interface QueryOptions {
@@ -24,12 +24,15 @@ export interface QueryOptions {
 export default class DynamoDB extends DynamoDBClient {
   private table: string = '';
 
+  private region: string = '';
+
   private documentClient: DynamoDBDocumentClient;
 
   constructor(config: DynamoDBConfig) {
     super(config);
 
     this.table = config.table;
+    this.region = config.region as string ?? '';
     this.documentClient = DynamoDBDocumentClient.from(this);
   }
 
@@ -173,5 +176,17 @@ export default class DynamoDB extends DynamoDBClient {
     const { Items: items } = await this.documentClient.send(command);
 
     return DynamoDB.filterDeletedItems(items as RecordItem[]) as RecordItem[];
+  }
+
+  public get getTable() {
+    return this.table;
+  }
+
+  public get getRegion() {
+    return this.region;
+  }
+
+  public get getDocumentClient() {
+    return this.documentClient;
   }
 }
