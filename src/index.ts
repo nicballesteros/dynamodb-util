@@ -1,7 +1,6 @@
-import { DynamoDBClient, DynamoDBClientConfig, QueryCommand, QueryCommandInput } from '@aws-sdk/client-dynamodb';
-import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient, DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, QueryCommandInput } from '@aws-sdk/lib-dynamodb';
 import { NativeAttributeValue } from '@aws-sdk/util-dynamodb';
-import GetItemCommandError from './errors/GetItemCommandError';
 
 export interface DynamoDBConfig extends DynamoDBClientConfig {
   table: string,
@@ -41,16 +40,6 @@ export default class DynamoDB extends DynamoDBClient {
     });
   }
 
-  public async putItem(item: RecordItem): Promise<void> {
-    const command = new PutCommand({
-      TableName: this.table,
-      Item: {
-        ...item,
-      },
-    });
-
-    await this.documentClient.send(command);
-  }
 
   private filterDeletedItems(items: RecordItem | RecordItem[] ): RecordItem | RecordItem[] | undefined {
     if (!Array.isArray(items)) {
@@ -62,6 +51,17 @@ export default class DynamoDB extends DynamoDBClient {
     }
 
     return items.filter((i) => i.isDeleted !== true);
+  }
+
+  public async putItem(item: RecordItem): Promise<void> {
+    const command = new PutCommand({
+      TableName: this.table,
+      Item: {
+        ...item,
+      },
+    });
+
+    await this.documentClient.send(command);
   }
 
   public async getItem(primaryKey: string, sortKey: string): Promise<RecordItem | undefined> {
