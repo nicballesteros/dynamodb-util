@@ -1,9 +1,5 @@
 {
-<<<<<<< Updated upstream
-  "name": "@nicballesteros/dynamodb-util",
-=======
   "name": "dynamodb-table-util",
->>>>>>> Stashed changes
   "version": "1.0.0",
   "description": "A simple @aws-sdk/client-dynamodb wrapper",
   "main": "build/index.js",
