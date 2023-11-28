@@ -41,7 +41,7 @@ describe('DynamoDB Wrapper Class', () => {
   });
 
   describe('constructor', () => {
-    it('should create a DynamoDB object', async () => {
+    it('should create a DynamoDB object', () => {
       const client = new DynamoDB({
         table,
         region,
@@ -49,6 +49,16 @@ describe('DynamoDB Wrapper Class', () => {
 
       expect(client.getTable).toBe(table);
       expect(client.getRegion).toBe(region);
+      expect(client.getDocumentClient).toBeInstanceOf(DynamoDBDocumentClient);
+    });
+
+    it('should use an empty string if region is not defined', () => {
+      const client = new DynamoDB({
+        table,
+      });
+
+      expect(client.getTable).toBe(table);
+      expect(client.getRegion).toBe('');
       expect(client.getDocumentClient).toBeInstanceOf(DynamoDBDocumentClient);
     });
   });
@@ -64,11 +74,22 @@ describe('DynamoDB Wrapper Class', () => {
       delete process.env.DYNAMODB_REGION;
     });
 
-    it('should work with environment variables', async () => {
+    it('should work with environment variables', () => {
       const client = DynamoDB.fromEnvironment();
 
       expect(client.getTable).toBe(table);
       expect(client.getRegion).toBe(region);
+      expect(client.getDocumentClient).toBeInstanceOf(DynamoDBDocumentClient);
+    });
+
+    it('should use empty strings if not set', () => {
+      delete process.env.DYNAMODB_TABLE;
+      delete process.env.DYNAMODB_REGION;
+
+      const client = DynamoDB.fromEnvironment();
+
+      expect(client.getTable).toBe('');
+      expect(client.getRegion).toBe('');
       expect(client.getDocumentClient).toBeInstanceOf(DynamoDBDocumentClient);
     });
   });
@@ -406,6 +427,178 @@ describe('DynamoDB Wrapper Class', () => {
           ':ppk': item.ppk,
           ':psk': item.psk,
         } as Record<string, NativeAttributeValue>,
+        Limit: limit,
+      });
+
+      expect(res).toEqual(items);
+    });
+  });
+
+  describe('querySecondaryIndex', () => {
+    it('should query the secondary index', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = createItem();
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.querySecondaryIndex(item.spk ?? '');
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'spk = :spk',
+        ExpressionAttributeValues: {
+          ':spk': item.spk,
+        } as Record<string, NativeAttributeValue>,
+        IndexName: 'gsi',
+      });
+
+      expect(res).toEqual(items);
+    });
+
+    it('should remove deleted items', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = createItem();
+
+      const deletedItem: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+        isDeleted: true,
+        spk: 'metadata',
+        ssk: `resource:${chance.guid()}`,
+      };
+
+      const items: Record<string, NativeAttributeValue>[] = [item, deletedItem, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.querySecondaryIndex(item.spk ?? '');
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'spk = :spk',
+        ExpressionAttributeValues: {
+          ':spk': item.spk,
+        } as Record<string, NativeAttributeValue>,
+        IndexName: 'gsi',
+      });
+
+      expect(res.length).toBe(items.length - 1);
+      expect(res).toEqual(items.filter((i) => i.isDeleted !== true));
+    });
+
+    it('should query the secondary index and the sort key', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = createItem();
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.querySecondaryIndex(item.spk ?? '', item.ssk ?? '');
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'spk = :spk and begins_with(ssk, :ssk)',
+        ExpressionAttributeValues: {
+          ':spk': item.spk,
+          ':ssk': item.ssk,
+        } as Record<string, NativeAttributeValue>,
+        IndexName: 'gsi',
+      });
+
+      expect(res).toEqual(items);
+    });
+
+    it('should only return pk', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = createItem()
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const res = await client.querySecondaryIndex(item.spk ?? '', item.ssk ?? '', {
+        pkOnly: true,
+      });
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'spk = :spk and begins_with(ssk, :ssk)',
+        ExpressionAttributeValues: {
+          ':spk': item.spk,
+          ':ssk': item.ssk,
+        } as Record<string, NativeAttributeValue>,
+        IndexName: 'gsi',
+        ProjectionExpression: 'spk',
+      });
+
+      expect(res).toEqual(items);
+    });
+
+    it('should set a limit', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = createItem();
+
+      const items: Record<string, NativeAttributeValue>[] = [item, ...chance.n(createItem, 4)];
+
+      documentClientMock.on(QueryCommand).resolves({
+        Items: items,
+      });
+
+      const limit = chance.natural({ min: 5, max: 10 });
+
+      const res = await client.querySecondaryIndex(item.spk ?? '', item.ssk ?? '', {
+        limit,
+      });
+
+      expect(documentClientMock).toHaveReceivedCommand(QueryCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(QueryCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(QueryCommand, {
+        TableName: table,
+        KeyConditionExpression: 'spk = :spk and begins_with(ssk, :ssk)',
+        ExpressionAttributeValues: {
+          ':spk': item.spk,
+          ':ssk': item.ssk,
+        } as Record<string, NativeAttributeValue>,
+        IndexName: 'gsi',
         Limit: limit,
       });
 

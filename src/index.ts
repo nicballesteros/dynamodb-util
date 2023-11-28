@@ -37,7 +37,7 @@ export default class DynamoDB extends DynamoDBClient {
   }
 
   public static fromEnvironment(): DynamoDB {
-    const region = process.env.DYNAMODB_REGION ?? '';
+    const region = process.env.DYNAMODB_REGION;
     const table = process.env.DYNAMODB_TABLE ?? '';
 
     return new DynamoDB({
