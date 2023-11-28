@@ -1,0 +1,25 @@
+{
+  "name": "dynamodb-util",
+  "version": "1.0.0",
+  "description": "A simple @aws-sdk/client-dynamodb wrapper",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicballesteros/dynamodb-util.git"
+  },
+  "keywords": [
+    "dynamodb"
+  ],
+  "author": "Nic Ballesteros (nicballesteros2@gmail.com)",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/nicballesteros/dynamodb-util/issues"
+  },
+  "homepage": "https://github.com/nicballesteros/dynamodb-util#readme",
+  "devDependencies": {
+    "typescript": "5.3.2"
+  }
+}
