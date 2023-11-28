@@ -1,20 +1,14 @@
 import Chance from 'chance';
 import DynamoDB, { RecordItem } from '../src';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
 
 const chance = Chance();
 
-jest.mock('@aws-sdk/client-dynamodb');
-jest.mock('@aws-sdk/lib-dynamodb', () => ({
-  DynamoDBDocumentClient: jest.fn(() => ({
-    send: jest.fn(),
-  })),
-  PutCommand: jest.fn(),
-  GetCommand: jest.fn(),
-}));
-jest.mock('@aws-sdk/util-dynamodb');
-
 describe('DynamoDB Wrapper Class', () => {
+  const documentClientMock = mockClient(DynamoDBDocumentClient);
+
   let table: string;
   let region: string;
 
@@ -26,6 +20,8 @@ describe('DynamoDB Wrapper Class', () => {
       'us-west-1',
       'us-west-2',
     ]);
+
+    documentClientMock.reset();
   });
 
   describe('constructor', () => {
@@ -77,22 +73,147 @@ describe('DynamoDB Wrapper Class', () => {
         },
       };
 
+      documentClientMock.on(PutCommand).resolves({});
+
       await client.putItem(item);
 
-      const documentClient = client.getDocumentClient;
-
-      expect(documentClient.send).toHaveBeenCalledWith(new PutCommand({
-        Item: item,
-      }))
-
+      expect(documentClientMock).toHaveReceivedCommand(PutCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(PutCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(PutCommand, {
+        TableName: table,
+        Item: {
+          ...item,
+        },
+      });
     });
   });
 
   describe('getItem', () => {
+    it('should be a proxy for the getItem command', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
 
+      // An example data record
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+        data: {
+          numberValue: chance.integer(),
+        },
+      };
+
+      documentClientMock.on(GetCommand).resolves({
+        Item: item,
+      });
+
+      const res = await client.getItem(item.ppk, item.psk);
+
+      expect(documentClientMock).toHaveReceivedCommand(GetCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(GetCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(GetCommand, {
+        TableName: table,
+        Key: {
+          ppk: item.ppk,
+          psk: item.psk,
+        },
+      });
+
+      expect(res).toEqual(item);
+    });
+
+    it('should return undefined when not found', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+      };
+
+      documentClientMock.on(GetCommand).resolves({
+        Item: undefined,
+      });
+
+      const res = await client.getItem(item.ppk, item.psk);
+
+      expect(documentClientMock).toHaveReceivedCommand(GetCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(GetCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(GetCommand, {
+        TableName: table,
+        Key: {
+          ppk: item.ppk,
+          psk: item.psk,
+        },
+      });
+
+      expect(res).toBe(undefined);
+    });
+
+    it('should filter out deleted items', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
+
+      // An example data record
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+        isDeleted: true,
+        data: {
+          numberValue: chance.integer(),
+        },
+      };
+
+      documentClientMock.on(GetCommand).resolves({
+        Item: item,
+      });
+
+      const res = await client.getItem(item.ppk, item.psk);
+
+      expect(documentClientMock).toHaveReceivedCommand(GetCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(GetCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(GetCommand, {
+        TableName: table,
+        Key: {
+          ppk: item.ppk,
+          psk: item.psk,
+        },
+      });
+
+      expect(res).toBe(undefined);
+    });
   });
 
   describe('deleteItem', () => {
+    it('should be a proxy for the deleteItem command', async () => {
+      const client = new DynamoDB({
+        table,
+        region,
+      });
 
+      const item: RecordItem = {
+        ppk: `resource:${chance.guid()}`,
+        psk: 'metadata',
+      };
+
+      documentClientMock.on(DeleteCommand).resolves({});
+
+      await client.deleteItem(item.ppk, item.psk);
+
+      expect(documentClientMock).toHaveReceivedCommand(DeleteCommand);
+      expect(documentClientMock).toHaveReceivedCommandTimes(DeleteCommand, 1);
+      expect(documentClientMock).toHaveReceivedCommandWith(DeleteCommand, {
+        TableName: table,
+        Key: {
+          ppk: item.ppk,
+          psk: item.psk,
+        },
+      });
+    });
   });
 });
