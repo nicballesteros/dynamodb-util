@@ -1,5 +1,7 @@
 import { DynamoDBClient, DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
-import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, QueryCommandInput } from '@aws-sdk/lib-dynamodb';
+import {
+  DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, QueryCommandInput,
+} from '@aws-sdk/lib-dynamodb';
 import { NativeAttributeValue } from '@aws-sdk/util-dynamodb';
 
 export interface DynamoDBConfig extends DynamoDBClientConfig {
@@ -21,6 +23,7 @@ export interface QueryOptions {
 
 export default class DynamoDB extends DynamoDBClient {
   private table: string = '';
+
   private documentClient: DynamoDBDocumentClient;
 
   constructor(config: DynamoDBConfig) {
@@ -40,7 +43,9 @@ export default class DynamoDB extends DynamoDBClient {
     });
   }
 
-  private filterDeletedItems(items: RecordItem | RecordItem[] ): RecordItem | RecordItem[] | undefined {
+  private static filterDeletedItems(
+    items: RecordItem | RecordItem[],
+  ): RecordItem | RecordItem[] | undefined {
     if (!Array.isArray(items)) {
       if (items?.isDeleted === true) {
         return undefined;
@@ -78,7 +83,7 @@ export default class DynamoDB extends DynamoDBClient {
       return undefined;
     }
 
-    return this.filterDeletedItems(item as RecordItem) as RecordItem | undefined;
+    return DynamoDB.filterDeletedItems(item as RecordItem) as RecordItem | undefined;
   }
 
   public async deleteItem(primaryKey: string, sortKey: string): Promise<void> {
@@ -93,7 +98,11 @@ export default class DynamoDB extends DynamoDBClient {
     await this.documentClient.send(command);
   }
 
-  public async queryPrimaryIndex(primaryKey: string, sortKeyBeginsWith?: string, options?: QueryOptions) {
+  public async queryPrimaryIndex(
+    primaryKey: string,
+    sortKeyBeginsWith?: string,
+    options?: QueryOptions,
+  ): Promise<RecordItem[]> {
     let KeyConditionExpression = 'ppk = :ppk';
     const ExpressionAttributeValues: Record<string, NativeAttributeValue> = {
       ':ppk': primaryKey,
@@ -124,10 +133,14 @@ export default class DynamoDB extends DynamoDBClient {
 
     const { Items: items } = await this.documentClient.send(command);
 
-    return this.filterDeletedItems(items as RecordItem[]);
+    return DynamoDB.filterDeletedItems(items as RecordItem[]) as RecordItem[];
   }
 
-  public async querySecondaryIndex(secondaryKey: string, sortKeyBeginsWith?: string, options?: QueryOptions) {
+  public async querySecondaryIndex(
+    secondaryKey: string,
+    sortKeyBeginsWith?: string,
+    options?: QueryOptions,
+  ): Promise<RecordItem[]> {
     let KeyConditionExpression = 'spk = :spk';
     const ExpressionAttributeValues: Record<string, NativeAttributeValue> = {
       ':spk': secondaryKey,
@@ -159,6 +172,6 @@ export default class DynamoDB extends DynamoDBClient {
 
     const { Items: items } = await this.documentClient.send(command);
 
-    return this.filterDeletedItems(items as RecordItem[]);
+    return DynamoDB.filterDeletedItems(items as RecordItem[]) as RecordItem[];
   }
 }
