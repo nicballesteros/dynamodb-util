@@ -43,5 +43,10 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "3.460.0",
     "@aws-sdk/lib-dynamodb": "3.460.0"
-  }
+  },
+  "files": [
+    "build/index.js",
+    "LICENSE",
+    "package*.json"
+  ]
 }
